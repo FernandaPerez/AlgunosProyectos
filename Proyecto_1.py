@@ -76,18 +76,23 @@
 # 
 # Es necesario notar que, para valores de $m = 0 $, los coeficientes $M_{lm} = 0$.
 
-# In[13]:
+# In[2]:
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib import cm, colors
 import scipy as spy
 import scipy.integrate as integrate
 from types import *
+from mpl_toolkits.mplot3d import axes3d, Axes3D 
+import matplotlib.cm as cm
+
+#%matplotlib inline
 
 
 # Introducimos los valores iniciales del problema. Por simplicidad, eligiremos una esfera unitaria y un potencial eléctrico de 5 volts.
 
-# In[5]:
+# In[3]:
 
 a = 1.   #Radio de la Esfera
 V0 = 5.  #Potencial eléctrico V0
@@ -95,7 +100,7 @@ V0 = 5.  #Potencial eléctrico V0
 
 # Definimos una clase que permitirá efectuar operaciones con el grado y el orden de los polinomios con mayor eficiacia.
 
-# In[6]:
+# In[4]:
 
 class Grado_Pol:
     
@@ -122,14 +127,23 @@ class Grado_Pol:
         
 
 
-# Definimos los coeficientes $D_{lm}$.
+# A continuación, las funciones especiales que serán necesarias: Los polinomios asociados de legendre y los armonicos esferico, de los que únicamente será posible retomar la parte real.
 
-# In[7]:
+# In[5]:
+
+def Legendre (x, grado, orden):
+        return spy.special.lpmv(orden, grado, x)
+def Ylm (r, th, phi, grado, orden):
+    return spy.special.sph_harm(orden, grado, phi, th)
+
+
+# Definimos los coeficientes $D_{lm}$.
+# La integral $\int_0 ^1 x^2 ~P_l ^m (x) dx $ será realizada con la libreria scypy.integrate.quad
+
+# In[6]:
 
 def Clm (l, m):                                  # El coeficiente Clm es un auxiliar, permite conocer informacion util
     
-    def Legendre (x, grado, orden):
-        return spy.special.lpmv(orden, grado, x)
     def Mlm (l, m):
         return ((-1.)**m)*np.sqrt(((2.*l + 1)*np.math.factorial(l-m))/(4*np.pi*np.math.factorial(l+m)))*(V0 / (a**l))*((1. / (0.5 - m)) - (1. / (0.5 + m)))
     integral = integrate.quad(Legendre, 1., 0., args=(l,m))
@@ -144,48 +158,159 @@ def Dlm (l,m):
     
 
 
-# In[8]:
+# Para la funcion potencial, es necesario realizar la "suma infinita" sobre los grados $l$ del polinomio. Por simplicidad, la variable de grado a sido renombrada como *Rango*, y puede manipularse para tomar una *mejor aproximacion*. Como primera propuesta, para ahorrar recursos de computo, ha sido designada con un valor predeterminado de 4.
 
-def Ylm (r, th, phi, grado, orden):
-    return spy.special.sph_harm(orden, grado, phi, th)
-    
+# In[34]:
 
-
-# In[22]:
-
-Rango = 4
-
-def V(r, th, phi, Rango=3):
-    V = 0.
-    for i in range (0,4):
+def V(r, th, phi, Rango=4):
+    V = 0.                           #Fuera del ciclo. Queremos sumar las todas las m's, sobre todas las i's.
+    progreso = 0.
+    for i in range (1,Rango+1):
         l = Grado_Pol(i)
         if not l.Orden():
             print("El grado ", l.Grado, " no es valido")
         else:
-            print("Para el grado ", i, " hay ", l.No_Orden(), " ordenes.")
+            #print("Para el grado ", i, " hay ", l.No_Orden(), " ordenes validos.")
             for m in l.Orden():
                 D = Dlm(i,m)
                 if D < 1e-6 :
                     D = 0
                 V = V + D*Ylm(r, th,phi, i, m)
-                print (D, "  l = ", i, " m = ", m, "  Error = ", Clm(i,m)[1], "Mlm = ", Clm(i,m)[2] )
-            print("  \n")
+                #print (D, "  l = ", i, " m = ", m, "  Error = ", Clm(i,m)[1], "Mlm = ", Clm(i,m)[2] )
+            progreso =  (i)*(100./Rango)
+            #print ("... %d "% progreso,  "%")
     
+                            
     return V
 
     
 
 
-# In[23]:
+# La funcion a graficar es, entonces, una funcion de 4 variables: tres coordenadas espaciales (en coordenadas esfericas), y una cuarta coordenada que representa el valor del potencial $V(r, \theta, \phi)$. Para visualizar una imagen, la variable $r$ será fijada como parámetro. La informacion del potencial sera incluida como un mapa de colores por medio de las librerias matplotlib.cm y matplotlib.colors, e incorporada a una plot_surface de la función $f(r, \theta, \phi)$ como una máscara de color, para cada punto.
+# 
+# Considerando únicamente la componente real de V y mapeando los puntos para Th y Ph obtenidos (un arreglo de N por N. De incluir la variable r sería de N x N x N):
 
-rr = np.linspace(0, a, 5)
-tt = np.linspace(0, np.pi, 5)
-pp = np.linspace(0, 2*(np.pi), 5)
+# In[35]:
+
+"""
+color_map= np.real(V(a,Th,Ph,5))
+norm = colors.Normalize()
+color = norm(color_map)
+
+colorbar = cm.ScalarMappable(cmap = cm.jet)
+colorbar.set_array(color_map)
+"""
 
 
-# In[24]:
+# Se hace necesario crear una malla de puntos para:
+# $$ 0 \leq \theta \leq \pi/2 ~; ~ 0 \leq \phi \leq \pi$$
 
-R,Th,Ph = np.meshgrid(rr, tt, pp)
+# In[36]:
+
+#Estos espacios son necesarios para la creacion de una malla de C x C puntos
+C = 100
+
+
+# In[37]:
+
+tt = np.linspace(0, (np.pi)/2. , C)
+pp = np.linspace(0, 2*(np.pi), C)
+        
+Th,Ph = np.meshgrid( tt, pp)
+
+
+# Incluyendo el mapa de colores:
+
+# In[38]:
+
+"""
+** Esto tambien, necesito que corra para diferentes colores del radio
+
+color_map= np.real(V(R,Th,Ph,5))
+norm = colors.Normalize()
+color = norm(color_map)
+
+colorbar = cm.ScalarMappable(cmap = cm.jet)
+colorbar.set_array(color_map)
+"""
+
+
+# In[53]:
+
+def graficas (N=1, th=Th, phi=Ph, Rango=4, factor_ciclo=1):
+    
+    print("-----------------------------------------------------")
+    contador = 0.
+    fig = plt.figure(figsize=(6*N,N*6))
+    for i in range(1,N+1):
+    
+        #print ("GRAFICA %d de %d" % (i, N))
+        
+        R = i*(a/(factor_ciclo*N))
+        t = (25./N)
+        s = "..."
+        X = R*np.sin(Th)*np.cos(Ph)
+        Y = R*np.sin(Th)*np.sin(Ph)
+        Z = R*np.cos(Th)
+        #print("(Malla creada para r = %3.3f)"%R)
+        
+        contador += t
+        print(s , contador, "%")
+        
+        color_map= np.real(V(R,Th,Ph,Rango))
+        norm = colors.Normalize()
+        color = norm(color_map)
+        
+        contador += t
+        print(s , contador, "%")
+
+        colorbar = cm.ScalarMappable(cmap = cm.jet)
+        colorbar.set_array(color_map)
+        if (N%2) != 0:
+            ax = fig.add_subplot(N,1, i, projection="3d")
+        else:
+            ax = fig.add_subplot(N/2,N/2, i, projection="3d")
+        
+        contador += t
+        print(s , contador, "%")
+        
+        ax.set_xlim(-1,1)
+        ax.set_ylim(-1,1)
+        ax.set_zlim(-1,1)
+        ax.set_title(r"Grafica de $ V(r, \theta, \phi)$ para $r = %2.2f $ (grado del polinomio $l = %d$)" % (R,Rango))
+        ax.plot_surface(X, Y, Z,  rstride=1, cstride=1, facecolors=cm.jet(color))
+        fig.colorbar(colorbar, shrink=0.7)
+        
+        contador += t
+        print(s , contador, "%")   
+    
+    fig.savefig("%d_grado_%d.png"%(factor_ciclo, Rango))
+    print ("Puntos graficados: ",Th[0].size)
+    print("Grado maximo del polinimio: ", Rango)    
+    print("-----------------------------------------------------")
+    plt.clf()
+    plt.cla()
+    plt.close(fig)
+
+
+# In[57]:
+
+#graficas(Rango=2)
+
+
+# In[56]:
+
+v = input("No. de cuadros")
+
+def cuadros (frames=10):
+    for l in range(1,frames):
+        graficas(Rango=6, factor_ciclo = l)
+        print("--------------->   cuadro %d guardado"%l)
+
+
+# In[55]:
+
+cuadros(v)
 
 
 # In[ ]:
