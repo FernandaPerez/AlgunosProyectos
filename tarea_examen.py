@@ -35,6 +35,21 @@ def V (r, th, phi, M=4):
             V = V + Alm (l, m_valida)*(1./(r**grado))*Ylm(l, m_valida, th, phi)
     return V
         
+pasos = 100
+
+th = np.linspace(0. , np.pi, pasos)
+rr = np.linspace(0., R0, pasos)
+
+R, Th = np.meshgrid(rr, th)
+
+X = R*np.cos(Th)
+Y = R*np.sin(Th)
+
+fig = plt.figure()
+ax = plt.axes()
+im = ax.scatter(X, Y)
+
+plt.show()
     
 
 print "Todo bien"
