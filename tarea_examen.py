@@ -39,7 +39,7 @@ def V (r, th, phi, M=10):
             V =  V + Alm (l, m_valida)*Ylm(l, m_valida, th, phi)
     return V
         
-pasos = 150
+pasos = 100
 
 th = np.linspace(0. , 2*np.pi, pasos)
 rr = np.linspace(0., R0, pasos)
@@ -54,10 +54,10 @@ color_map= np.real(V(R,Th,Ph))
 fig = plt.figure()
 ax = plt.axes()
 ax.set_title(r"Grafica para $V(r, \theta, \phi = \frac{\pi}{2})$")
-im = ax.scatter(X, Y, c=color_map)
+im = ax.pcolor(X, Y,color_map)
 plt.colorbar(im, shrink=0.7)
 
-
+fig.savefig("potencial.png")
 plt.show()
     
 
