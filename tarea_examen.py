@@ -36,7 +36,7 @@ def V (r, th, phi, M=10):
                 lista.append(m)
 
         for m_valida in lista:
-            V =  V + Alm (l, m_valida)*Ylm(l, m_valida, th, phi)
+            V =  V + Alm (l, m_valida)*Ylm(l, m_valida, th, phi)*(r**l)
     return V
         
 pasos = 100
