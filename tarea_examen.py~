@@ -1,0 +1,6 @@
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.mtools import Axes3D
+import scipy.special as special
+
+print "Todo bien"
